@@ -66,6 +66,11 @@ jobs:
         with:
           name: microtempo-release
 
+      - name: Rename APK with version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          mv microtempo.apk microtempo-${VERSION}.apk
+
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:

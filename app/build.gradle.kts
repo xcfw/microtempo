@@ -55,6 +55,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationVariants.all {
+                outputs.all {
+                    (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl)
+                        .outputFileName = "microtempo-debug.apk"
+                }
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -63,6 +71,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            applicationVariants.all {
+                outputs.all {
+                    (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl)
+                        .outputFileName = "microtempo.apk"
+                }
+            }
         }
     }
 
