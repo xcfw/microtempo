@@ -6,7 +6,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// Load keystore properties
+// Load keystore properties from file or environment variables (CI)
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
@@ -20,10 +20,25 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
+            // Support both local (keystore.properties) and CI (environment variables)
+            val ciKeystoreFile = System.getenv("KEYSTORE_FILE")
+            val ciStorePassword = System.getenv("KEYSTORE_PASSWORD")
+            val ciKeyAlias = System.getenv("KEY_ALIAS")
+            val ciKeyPassword = System.getenv("KEY_PASSWORD")
+
+            if (ciKeystoreFile != null && ciStorePassword != null) {
+                // CI environment
+                storeFile = rootProject.file(ciKeystoreFile)
+                storePassword = ciStorePassword
+                keyAlias = ciKeyAlias
+                keyPassword = ciKeyPassword
+            } else if (keystorePropertiesFile.exists()) {
+                // Local environment
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
         }
     }
 

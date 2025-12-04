@@ -2,6 +2,8 @@
 
 Ultra-precise chronograph app for Android with true microsecond precision via custom SNTP implementation.
 
+https://github.com/user-attachments/assets/daf5fc53-ffe2-4629-8b64-4a66079ea3b0
+
 ## Features
 
 - **Microsecond precision**: Custom SNTP client reads NTP fractional seconds (bytes 44-47) for ~232ps source resolution
@@ -15,7 +17,12 @@ Ultra-precise chronograph app for Android with true microsecond precision via cu
 ## Build
 
 ```bash
+# Debug build
 ./gradlew assembleDebug
+
+# Release build
+cp local.properties.example local.properties
+./gradlew assembleRelease
 ```
 
 ## Architecture

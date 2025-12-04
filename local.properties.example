@@ -1,0 +1,5 @@
+storeFile=../key.jks
+storePassword=blabla123
+keyAlias=key
+keyPassword=blabla123
+
