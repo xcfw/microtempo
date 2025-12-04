@@ -1,0 +1,5 @@
+Initial release:
+• Microsecond-precision NTP synchronization
+• Terraluna-inspired regulator dial
+• Weather and lunar phase display
+• Multiple NTP server support

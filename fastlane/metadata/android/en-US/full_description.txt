@@ -1,0 +1,21 @@
+MicroTempo is an ultra-precise chronograph app that displays time synchronized via raw SNTP protocol at true microsecond precision with smooth 90Hz animations.
+
+Features:
+• Microsecond precision via custom SNTP implementation
+• Reads NTP fractional seconds (bytes 44-47) for ~232ps resolution
+• Burst sampling: keeps lowest-RTT sample for accuracy
+• Auto-resync every minute to compensate for quartz drift
+• Terraluna-inspired regulator dial with Arabic-Indic numerals
+• Perpetual calendar with outsize date, day, month, and leap year indicator
+• Lunar phase indicator from wttr.in weather data
+• Weather display (temperature and conditions)
+• Multiple NTP server selection (Google, Cloudflare, Apple, NTP Pool, NIST)
+• Leap smear support indication
+• Zero external NTP library dependencies
+• Dark theme optimized for AMOLED screens
+
+Technical highlights:
+• Custom SNTP client (~120 lines) using standard JDK DatagramSocket
+• Thread-safe atomic offset storage with lock-free reads
+• Zero-allocation frame loop for smooth 90Hz rendering
+• Resource-safe socket handling with automatic cleanup
