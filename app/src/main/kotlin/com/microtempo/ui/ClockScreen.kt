@@ -3,8 +3,10 @@ package com.microtempo.ui
 import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -43,9 +45,14 @@ import com.microtempo.PreciseNtpClock
 import com.microtempo.PreciseTime
 import com.microtempo.SyncInfo
 import com.microtempo.WeatherData
+import com.microtempo.calibration.DisplayLatencyCompensator
 
 @Composable
-fun ClockScreen(vm: ClockViewModel = viewModel()) {
+fun ClockScreen(
+    vm: ClockViewModel = viewModel(),
+    compensator: DisplayLatencyCompensator? = null,
+    onOpenCalibration: () -> Unit = {}
+) {
     val state by vm.state.collectAsState()
     val context = LocalContext.current
 
@@ -71,13 +78,18 @@ fun ClockScreen(vm: ClockViewModel = viewModel()) {
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AnalogClockWithTick(modifier = Modifier.size(clockSize))
+                    AnalogClockWithTick(modifier = Modifier.size(clockSize), compensator = compensator)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        DigitalDisplayWithTick(onRefresh = { vm.sync() })
+                        DigitalDisplayWithTick(onRefresh = { vm.sync() }, compensator = compensator)
                         Spacer(Modifier.height(8.dp))
                         WeatherDisplay(weather = state.weather, onRefresh = { vm.sync() })
                         Spacer(Modifier.height(8.dp))
                         SyncStatus(state.lastSync)
+                        Spacer(Modifier.height(4.dp))
+                        DelayIndicator(
+                            compensator = compensator,
+                            onLongPress = onOpenCalibration
+                        )
                         Spacer(Modifier.height(16.dp))
                         ServerToggle(
                             currentServer = state.selectedServer.name,
@@ -92,11 +104,16 @@ fun ClockScreen(vm: ClockViewModel = viewModel()) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    AnalogClockWithTick(modifier = Modifier.size(clockSize))
+                    AnalogClockWithTick(modifier = Modifier.size(clockSize), compensator = compensator)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        DigitalDisplayWithTick(onRefresh = { vm.sync() })
+                        DigitalDisplayWithTick(onRefresh = { vm.sync() }, compensator = compensator)
                         Spacer(Modifier.height(4.dp))
                         SyncStatus(state.lastSync)
+                        Spacer(Modifier.height(4.dp))
+                        DelayIndicator(
+                            compensator = compensator,
+                            onLongPress = onOpenCalibration
+                        )
                     }
                     WeatherDisplay(weather = state.weather, onRefresh = { vm.sync() })
                     ServerToggle(
@@ -164,17 +181,21 @@ private fun WeatherDisplay(weather: WeatherData?, onRefresh: () -> Unit) {
 /**
  * Digital display with frame-synced animation.
  * Clickable to trigger NTP refresh.
+ * Uses compensated time if compensator is provided.
  */
 @Composable
-private fun DigitalDisplayWithTick(onRefresh: () -> Unit) {
-    var time by remember { mutableStateOf(PreciseNtpClock.nowOrNull()) }
+private fun DigitalDisplayWithTick(
+    onRefresh: () -> Unit,
+    compensator: DisplayLatencyCompensator? = null
+) {
+    var time by remember { mutableStateOf<PreciseTime?>(null) }
     var frameCount by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         while (true) {
             withInfiniteAnimationFrameNanos { frameTimeNanos ->
                 frameCount = frameTimeNanos
-                time = PreciseNtpClock.nowOrNull()
+                time = compensator?.getCompensatedTime() ?: PreciseNtpClock.nowOrNull()
             }
         }
     }
@@ -217,17 +238,21 @@ private fun formatTime(time: PreciseTime): String {
 
 /**
  * Analog clock with frame-synced animation for smooth hand movement.
+ * Uses compensated time if compensator is provided.
  */
 @Composable
-private fun AnalogClockWithTick(modifier: Modifier = Modifier) {
-    var time by remember { mutableStateOf(PreciseNtpClock.nowOrNull()) }
+private fun AnalogClockWithTick(
+    modifier: Modifier = Modifier,
+    compensator: DisplayLatencyCompensator? = null
+) {
+    var time by remember { mutableStateOf<PreciseTime?>(null) }
     var frameCount by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         while (true) {
             withInfiniteAnimationFrameNanos { frameTimeNanos ->
                 frameCount = frameTimeNanos
-                time = PreciseNtpClock.nowOrNull()
+                time = compensator?.getCompensatedTime() ?: PreciseNtpClock.nowOrNull()
             }
         }
     }
@@ -281,6 +306,51 @@ private fun ServerToggle(
             fontSize = 14.sp,
             color = if (syncing) Color.White.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.7f)
         )
+    }
+}
+
+/**
+ * Display latency indicator - shows current compensation delay.
+ * Short tap: shows tooltip hint
+ * Long press: opens calibration screen
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun DelayIndicator(
+    compensator: DisplayLatencyCompensator?,
+    onLongPress: () -> Unit
+) {
+    var showHint by remember { mutableStateOf(false) }
+
+    val delayText = compensator?.let {
+        String.format(java.util.Locale.US, "Device lag: %.1fms", it.delayMs)
+    } ?: "Device lag: --"
+
+    val calibratedText = if (compensator?.isCalibrated == true) {
+        String.format(java.util.Locale.US, " (±%.2fms)", compensator.precisionMs)
+    } else {
+        " (est.)"
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = delayText + calibratedText,
+            fontSize = 11.sp,
+            color = Color.White.copy(alpha = 0.4f),
+            modifier = Modifier
+                .combinedClickable(
+                    onClick = { showHint = !showHint },
+                    onLongClick = onLongPress
+                )
+                .padding(4.dp)
+        )
+        if (showHint) {
+            Text(
+                text = "Hold to calibrate",
+                fontSize = 9.sp,
+                color = Color.White.copy(alpha = 0.3f)
+            )
+        }
     }
 }
 

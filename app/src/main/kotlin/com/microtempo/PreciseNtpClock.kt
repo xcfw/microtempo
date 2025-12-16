@@ -169,7 +169,19 @@ data class PreciseTime(
     val millis: Long,
     val micros: Int,
     val nanos: Int
-)
+) {
+    fun toTotalNanos(): Long = millis * 1_000_000 + micros * 1_000 + nanos
+
+    companion object {
+        fun fromTotalNanos(totalNanos: Long): PreciseTime {
+            val millis = totalNanos / 1_000_000
+            val remainder = totalNanos % 1_000_000
+            val micros = (remainder / 1_000).toInt()
+            val nanos = (remainder % 1_000).toInt()
+            return PreciseTime(millis, micros, nanos)
+        }
+    }
+}
 
 data class SyncInfo(
     val offsetNanos: Long,
